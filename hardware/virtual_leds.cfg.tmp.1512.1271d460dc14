@@ -1,0 +1,24 @@
+##### Virtual LEDs — hardware/virtual_leds.cfg #####
+#
+# klipper-virtual_leds (community addon — klippy/extras/virtual_leds.py, tracked via
+# moonraker.conf's [update_manager virtual_leds]) aliases indices 2-3 of the single
+# [neopixel _Toolhead] chain (thb:RGB, 3x GRBW: index 1 = status logo, index 2-3 = nozzle
+# lights) as their own addressable object. Superseded the led_effect-based split
+# (hardware/led_effects.cfg, archived) — this plugin's own README documents this exact
+# hardware pattern (Stealthburner-style status LED + separate nozzle LEDs on one chain).
+#
+# Unlike led_effect, config include order does NOT matter here — virtual_leds defers its
+# lookup of the underlying chain to the klippy:ready event (confirmed by reading
+# src/virtual_leds.py directly), not immediately at config-parse time. It also uses
+# Klipper's stock led.py helper internally, so SET_LED LED=nozzle_leds ... works exactly
+# like any native LED object, and writes go straight into the shared _Toolhead chain state
+# rather than an independent per-frame render loop — no flicker/ordering risk against
+# _SET_TH_LED's index-1 writes (macros/toolhead_leds.cfg) the way led_effect needed careful
+# handling for.
+#
+# Index list is 1-indexed here (matches Klipper's own LED indexing) — (2,3) means the 2nd
+# and 3rd physical LEDs on the chain, same two nozzle LEDs as before.
+
+[virtual_leds nozzle_leds]
+leds:
+    neopixel:_Toolhead (2,3)
