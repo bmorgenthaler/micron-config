@@ -1,0 +1,44 @@
+##### LED Effects — hardware/led_effects.cfg #####
+#
+# klipper-led_effect (community addon — klippy/extras/led_effect.py, tracked via
+# moonraker.conf's [update_manager led_effect]) split out of the single [neopixel Toolhead]
+# chain (thb:RGB, 3x GRBW: index 1 = status logo, index 2-3 = nozzle lights). Design notes
+# from the research session that led here: ~/led_effects.md.
+#
+# Scope: nozzle lights (index 2-3) ONLY. Index 1 (status) stays exactly as it was, driven by
+# macros/toolhead_leds.cfg's _SET_TH_LED/_STATUS_* — no [led_effect] object claims index 1,
+# so there's no fight between led_effect's independent per-frame rendering and _SET_TH_LED's
+# raw writes. Deliberate choice (the "Partial" migration option in led_effects.md) over
+# wrapping status in led_effect too: status color is tied to live print-state logic
+# (_STATUS_HOMING/_HEATING/_LEVELING/etc., changing constantly through PRINT_START), not
+# something a Mainsail on/off toggle or a static effect layer fits well.
+#
+# Nozzle lights don't need RGB color — just brightness (INTENSITY) and a warm/cool tint
+# (WARMTH), approximated on these GRBW LEDs by blending a little R (warm) or B (cool) on top
+# of the W channel base, since there's no true CCT/dual-white hardware here.
+#
+# recalculate: true is required for SET_LED_EFFECT to accept INTENSITY/WARMTH params live —
+# Mainsail's LED Effects panel (v2.17.0+) has no color/param picker, just on/off + a static
+# swatch, so live tuning is via SET_LED_EFFECT from console/HA/Moonraker API, not the panel.
+#
+# Integration note (2026-08-09): _SET_TH_LED and _STATUS_OFF used to also write raw values
+# to index 2-3 (re-asserting nozzle on/off state batched alongside index 1, to avoid flicker
+# on the shared neopixel transmit) — exactly the kind of raw-SET_LED-vs-led_effect conflict
+# this split has to avoid. Both were changed to leave index 2-3 alone entirely;
+# NOZZLE_LIGHTS_ON/NOZZLE_LIGHTS_OFF and _STATUS_OFF now go through SET_LED_EFFECT
+# exclusively for index 2-3. The old _NOZZLE_LIGHTS state-tracker macro is gone — this
+# effect's own `enabled` status (printer["led_effect nozzle_lights"].enabled) is the single
+# source of truth for nozzle-light state now, not a separately-tracked gcode variable.
+
+[led_effect nozzle_lights]
+autostart: false
+recalculate: true
+frame_rate: 24
+leds:
+    neopixel:Toolhead (2-3)
+layers:
+    {% set intensity = params.INTENSITY|default(0.25)|float %}
+    {% set warmth = params.WARMTH|default(0)|float %}
+    {% set r = intensity * ([warmth, 0.0]|max) * 0.4 %}
+    {% set b = intensity * ([-warmth, 0.0]|max) * 0.4 %}
+    static 1 0 top ({r},0,{b},{intensity})
