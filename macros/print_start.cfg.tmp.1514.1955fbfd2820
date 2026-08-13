@@ -1,0 +1,179 @@
+##########################################
+# PRINT_START macro for Micron R1
+#
+# PrusaSlicer start gcode:
+# M104 S0
+# M140 S0
+# PRINT_START EXTRUDER=[first_layer_temperature[initial_extruder]] BED=[first_layer_bed_temperature] CHAMBER=[chamber_temperature] MATERIAL={filament_type[initial_extruder]}
+#
+# OrcaSlicer start gcode:
+# M104 S0
+# M140 S0
+# PRINT_START EXTRUDER=[first_layer_temperature] BED=[first_layer_bed_temperature] CHAMBER=[chamber_temperature] MATERIAL={filament_type[initial_extruder]}
+##########################################
+# macros/print_start.cfg
+[gcode_macro PRINT_START]
+gcode:
+  {% set target_bed = params.BED|int %}
+  {% set target_extruder = params.EXTRUDER|int %}
+  {% set target_chamber = params.CHAMBER|default("0")|int %}
+  {% set target_chamber_minimal = params.CHAMBER_MINIMAL|default("0")|int %}
+  {% set target_chamber_wait = [target_chamber, target_chamber_minimal]|select(">", 0)|min|default(0) %}
+  {% set x_wait = printer.toolhead.axis_maximum.x|float / 2 %}
+  {% set y_wait = printer.toolhead.axis_maximum.y|float / 2 %}
+  {% set clean_temp = [target_extruder * 0.85, 150]|max|int %}
+  {% set material = params.MATERIAL|default("PLA")|string|upper %}
+  {% set lower = printer['filament_switch_sensor filament_lower'].filament_detected %}
+  {% set upper = printer['filament_switch_sensor filament_upper'].filament_detected %}
+  {% set bed_hot = printer.heater_bed.temperature >= (target_bed - 10) %}
+  # Chamber heating is already non-blocking/concurrent (_CHAMBER_HEATSOAK_START/_WAIT),
+  # so it doesn't need to gate the soak/dwell skip — only whether the bed/mat are already
+  # hot matters. Previously also required target_chamber==0, which meant skip_soak never
+  # fired on chamber-heated ASA prints (CHAMBER=45) — the exact case this was meant to help.
+  # Fixed 2026-08-12 alongside wiring skip_soak into the >90C branch.
+  {% set skip_soak = bed_hot %}
+
+
+  # ─── Filament guard — must be inline Jinja so the else-branch is never queued ───
+  {% if not lower %}
+    {% if not upper %}
+      RESPOND TYPE=error MSG="PRINT_START: No filament at either sensor — aborting."
+      { action_call_remote_method("notify",
+          name="gcode_pushover",
+          title="🚫 No Filament",
+          message="Print aborted — no filament detected at either sensor.") }
+    {% else %}
+      RESPOND TYPE=error MSG="PRINT_START: Filament at upper sensor but not fed to hotend — aborting."
+      { action_call_remote_method("notify",
+          name="gcode_pushover",
+          title="🚫 Filament Not Loaded",
+          message="Print aborted — filament present but not fed to hotend. Run LOAD_FILAMENT.") }
+    {% endif %}
+    CANCEL_PRINT
+
+  {% else %}
+
+    SET_GCODE_OFFSET Z=0
+    SKEW_PROFILE LOAD=Califlower
+    CLEAR_PAUSE
+    SET_LED LED=Chamber WHITE=0.5
+
+    _STATUS_HOMING
+    G28
+    G90
+    BED_MESH_CLEAR
+
+    # Heatsoak for high-temp beds (ASA, PC, PA etc), or short soak for lower temps
+    {% if target_bed > 90 %}
+      RESPOND MSG="Bed: {target_bed}c"
+      _STATUS_HEATING
+      M106 S255
+      TOGGLE_FILTER
+      #This is not necessary because we end in the same position after homing
+      #G1 X{x_wait} Y{y_wait} Z15 F9000
+      G0 Z15 F9000
+      M140 S{target_bed}
+      M104 S120                                           # Pre-warm nozzle during soak, no ooze risk
+
+      # Chamber heat starts here (non-blocking) so it runs concurrently with the bed wait
+      # and the mat-soak dwell below, instead of fully completing before either starts.
+      # Confirmed live 2026-08-08: chamber alone took ~9.8min to reach 55C on this print,
+      # comfortably inside the ~14-15min the bed-wait + 10min dwell below already takes for
+      # a 110C bed — so _CHAMBER_HEATSOAK_WAIT after the dwell is normally a no-op, only
+      # doing real work on a colder ambient / higher chamber target than that.
+      _CHAMBER_HEATSOAK_START CHAMBER_TEMP={target_chamber}
+      TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM={target_bed - 2}
+
+      # Plate (heater_bed) hits target ~4min in, but the mat (bed_inner) is still ~25C
+      # behind at that point and takes ~13-15min more to converge (measured 2026-07-11,
+      # bed=110C: plate settled t=4min, mat within final ~9.5C band by t=13-15min).
+      # Dwell covers mat soak so cleaning/leveling/mesh don't start on a cold surface.
+      # Skipped when the bed was already hot at print start (skip_soak, same check used
+      # by the <=90C branch below) — back-to-back prints at the same bed temp don't need
+      # to pay this again, since the mat never got the chance to cool off between jobs.
+      # Fixed 2026-08-12: skip_soak previously existed but was only wired into the <=90C
+      # branch, so repeated ASA (110C) test prints always paid the full 10min dwell even
+      # with the bed/mat already converged — and CANCEL_PRINT requested during that dwell
+      # can't preempt it (Klipper's gcode queue is FIFO), so cancels on those prints took
+      # 15-20min to actually land. See project_print_start_skip_soak_fix memory.
+      {% if skip_soak %}
+        RESPOND MSG="Bed already at temp — skipping 10 min mat-soak dwell."
+      {% else %}
+        RESPOND MSG="Soak for mat equilibration (10 min)"
+        G4 P600000
+      {% endif %}
+
+      # Catch up on chamber if it hasn't reached target yet — see note above.
+      _CHAMBER_HEATSOAK_WAIT CHAMBER_TEMP={target_chamber}
+    {% else %}
+      RESPOND MSG="Bed: {target_bed}c"
+      _STATUS_HEATING
+      #This is not necessary because we end in the same position after homing
+      #G1 X{x_wait} Y{y_wait} Z15 F9000
+      G0 Z15 F9000
+      M190 S{target_bed}
+      M104 S120                                           # Pre-warm nozzle during soak, no ooze risk
+      {% if skip_soak %}
+        RESPOND MSG="Bed already at temp — skipping 5 min soak."
+      {% else %}
+        RESPOND MSG="Soak for 5 min"
+        G4 P300000
+      {% endif %}
+    {% endif %}
+
+    # Heat to cleaning temp (85% of print temp, min 150)
+    RESPOND MSG="Hotend: {clean_temp}c for cleaning"
+    _STATUS_HEATING
+    M109 S{clean_temp}
+
+    _STATUS_CLEANING
+    CLEAN_NOZZLE
+
+    # Move away from brush/bucket before fan-assisted cooldown
+    G1 X{x_wait} Y{y_wait} Z15 F9000
+
+    # Cool to ≤155 for Beacon contact calibration
+    RESPOND MSG="Cooling for contact calibration"
+    M104 S150
+    M106 S255                                             # PCF assists cooldown
+    TEMPERATURE_WAIT SENSOR=extruder MAXIMUM=155
+    M106 S0
+
+    G28 Z METHOD=CONTACT CALIBRATE=1                      # Calibrate z offset and beacon model
+
+    RESPOND MSG="Leveling"
+    _STATUS_LEVELING
+    QUAD_GANTRY_LEVEL
+
+    RESPOND MSG="Bed mesh"
+    _STATUS_MESHING
+    BED_MESH_CALIBRATE
+
+    G28 Z METHOD=CONTACT CALIBRATE=0                      # Final z offset with hot nozzle
+
+    # Heat to print temp
+    RESPOND MSG="Hotend: {target_extruder}c"
+    _STATUS_HEATING
+    #G1 X{x_wait} Y{y_wait} Z15 F9000
+    G0 Z15 F9000
+    M107
+    M109 S{target_extruder}
+
+    # Apply Beacon nozzle thermal expansion compensation
+    # Requires BEACON_CALIBRATE_NOZZLE_TEMP_OFFSET to have been run once
+    _BEACON_SET_NOZZLE_TEMP_OFFSET
+
+    #SET_DISPLAY_TEXT MSG="Printer goes brr"
+    _STATUS_PRINTING
+    
+    # Purge Line (front bed edge)
+    #G0 X{x_wait - 50} Y4 F10000
+    #G0 Z0.4
+    #G91
+    #G1 X100 E20 F1000
+    #G90
+
+    # KAMP Purge Line
+    LINE_PURGE
+
+  {% endif %}
