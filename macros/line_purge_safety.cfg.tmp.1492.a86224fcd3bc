@@ -1,0 +1,7 @@
+# Moved to late_includes/line_purge_safety.cfg 2026-08-20 — this file's LINE_PURGE
+# rename_existing wrapper needs to load AFTER KAMP_Settings.cfg, but living inside macros/
+# meant the [include macros/*.cfg] wildcard also picked it up (Klipper dedupes [include] by
+# resolved path, so it only actually loaded once — at the wildcard's earlier position, before
+# KAMP_Settings.cfg even ran). That caused a hard config error and halted the printer. See
+# late_includes/line_purge_safety.cfg and printer.cfg's include comment for the fix. Left
+# empty here on purpose — do not add content.
