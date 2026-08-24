@@ -1,0 +1,27 @@
+[gcode_shell_command screen_off]
+command: bash -c "export DISPLAY=:0; xrandr --output DSI-1 --off"
+timeout: 5.
+verbose: True
+
+[gcode_shell_command screen_on]
+command: bash -c "export DISPLAY=:0; xrandr --output DSI-1 --auto"
+timeout: 5.
+verbose: True
+
+[gcode_macro SCREEN_OFF]
+gcode:
+    {% if printer.idle_timeout.state == "Idle" %}
+        RUN_SHELL_COMMAND CMD=screen_off
+    {% endif %}
+
+[gcode_macro SCREEN_ON]
+description: Turn KlipperScreen display on, and wake the chamber + nozzle LEDs with it
+gcode:
+    RUN_SHELL_COMMAND CMD=screen_on
+    {% if printer.idle_timeout.state != "Printing" %}
+    # Don't touch LED state mid-print — PRINT_START/print body already own chamber/nozzle
+    # brightness at that point. Matches the same guard used in beacon.cfg's
+    # _HOME_POST_AXIS. Added 2026-08-24.
+    SET_LED LED=Chamber WHITE=0.25
+    NOZZLE_LIGHTS_ON
+    {% endif %}
