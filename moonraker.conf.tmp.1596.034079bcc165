@@ -1,0 +1,193 @@
+[server]
+host: 0.0.0.0
+port: 7125
+ssl_port: 7130
+# Certs are in $HOME/moonraker_data/certs/moonraker.(cert|key)
+
+# The maximum size allowed for a file upload (in MiB).  Default 1024 MiB
+max_upload_size: 1024
+
+# Path to klippy Unix Domain Socket
+klippy_uds_address: ~/printer_data/comms/klippy.sock
+
+[file_manager]
+# post processing for object cancel. Not recommended for low resource SBCs such as a Pi Zero. Default False
+enable_object_processing: True
+
+[authorization]
+cors_domains:
+    https://my.mainsail.xyz
+    http://my.mainsail.xyz
+    http://*.local
+    http://*.lan
+trusted_clients:
+    10.0.0.0/8
+    127.0.0.0/8
+    169.254.0.0/16
+    172.16.0.0/12
+    192.168.0.0/16
+    FE80::/10
+    ::1/128
+
+# enables partial support of Octoprint API
+[octoprint_compat]
+
+# enables moonraker to track and store print history.
+[history]
+
+[simplyprint] 
+webcam_name: gantry
+filament_sensor: filament_switch_sensor filament_upper
+ambient_sensor: temperature_sensor Chamber_Front_Right     
+
+[webcam gantry]
+location: gantry
+icon: mdiWebcam
+enabled: True
+#service: mjpegstreamer
+service: mjpegstreamer-adaptive
+target_fps: 30
+target_fps_idle: 5
+stream_url: /webcam?action=stream
+snapshot_url: /webcam?action=snapshot
+
+#[webcam gantry_new]
+#location: gantry_side
+#icon: mdiWebcam
+#enabled: True
+#service: mjpegstreamer
+#target_fps: 30 
+#target_fps_idle: 5
+#stream_url: /webcam2?action=stream
+#snapshot_url: /webcam2?action=snapshot
+
+# this enables moonraker announcements for mainsail
+[announcements]
+subscriptions:
+    mainsail
+
+# this enables moonraker's update manager
+[update_manager]
+refresh_interval: 168
+enable_auto_refresh: True
+
+[update_manager mainsail]
+type: web
+channel: stable
+repo: mainsail-crew/mainsail
+path: ~/mainsail
+
+[update_manager mainsail-config]
+type: git_repo
+primary_branch: master
+path: ~/mainsail-config
+origin: https://github.com/mainsail-crew/mainsail-config.git
+managed_services: klipper
+
+# Sonar update_manager entry
+[update_manager sonar]
+type: git_repo
+path: ~/sonar
+origin: https://github.com/mainsail-crew/sonar.git
+primary_branch: main
+managed_services: sonar
+system_dependencies: resources/system-dependencies.json
+
+# Beacon Probe
+[update_manager beacon]
+type: git_repo
+channel: dev
+path: ~/beacon_klipper
+origin: https://github.com/beacon3d/beacon_klipper.git
+env: ~/klippy-env/bin/python
+requirements: requirements.txt
+install_script: install.sh
+is_system_service: False
+managed_services: klipper
+info_tags:
+  desc=Beacon Surface Scanner
+
+## Klippain Shake&Tune automatic update management
+[update_manager Klippain-ShakeTune]
+type: git_repo
+origin: https://github.com/Frix-x/klippain-shaketune.git
+path: ~/klippain_shaketune
+virtualenv: /home/micron/klippy-env
+requirements: requirements.txt
+system_dependencies: system-dependencies.json
+primary_branch: main
+managed_services: klipper
+info_tags:
+  desc=Klipper Shake & Tune 
+
+## Crowsnest
+[update_manager crowsnest]
+type: git_repo
+path: ~/crowsnest
+origin: https://github.com/mainsail-crew/crowsnest.git
+primary_branch: v5
+managed_services: crowsnest
+system_dependencies: system-dependencies.json
+virtualenv: ~/crowsnest-env
+requirements: requirements.txt
+
+## Adaptive Mesh Purging
+[update_manager Klipper-Adaptive-Meshing-Purging]
+primary_branch: main
+managed_services: klipper
+origin: https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging
+path: /home/micron/Klipper-Adaptive-Meshing-Purging
+channel: dev
+type: git_repo
+
+
+#
+## Notifications
+#
+[notifier gcode_pushover]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}
+events: gcode
+title: Micron
+body: {event_message}
+#attach: http://127.0.0.1:8080/webcam/?action=snapshot
+
+#[notifier pushover_complete]
+#url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}
+#events: complete
+#title: Print Complete
+#body: {event_message}
+#attach: http://127.0.0.1:8080/webcam/?action=snapshot
+
+[notifier pushover_cancelled]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}
+events: cancelled
+title: 🚫 Print Cancelled
+body: {event_message}
+
+[notifier pushover_error]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}?priority=emergency
+events: error
+title: ❌ Print Error
+body: {event_message}
+attach: http://127.0.0.1:8080/webcam/?action=snapshot
+
+[notifier pushover_paused]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}?priority=high
+events: pause
+title: ⏸️ Print Paused
+body: {event_message}
+attach: http://127.0.0.1:8080/webcam/?action=snapshot
+
+[notifier pushover_resumed]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}
+events: resume
+title: ▶️ Print Resumed
+body: {event_message}
+
+[notifier pushover_disconnect]
+url: pover://{secrets.pushover.user_key}@{secrets.pushover.app_token}
+events: klippy_disconnect
+title: Klippy Disconnected
+body: {event_message}
+
+
