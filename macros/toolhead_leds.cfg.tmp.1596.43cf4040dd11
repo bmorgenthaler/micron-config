@@ -1,0 +1,89 @@
+###############################################
+# AntHead Nitehawk 36 RGB Status Macros
+# Three NeoPixel GRBW on [neopixel Toolhead] (printer.cfg) — plain SET_LED writes only,
+# no led_effect layer. Reverted 2026-08-24 from the klipper-led_effect nozzle_lights split
+# (hardware/led_effects.cfg, now removed) back to this single-object design; Toolhead is
+# unhidden and shows in Mainsail's Miscellaneous panel.
+# LED 1:   Status indicator — driven here via _SET_TH_LED/_STATUS_*
+# LED 2+3: Nozzle lights — driven here via NOZZLE_LIGHTS_ON/OFF
+# Index 1 and 2-3 are separate write paths — status changes never touch nozzle-light state
+# or vice versa.
+###############################################
+
+[gcode_macro NOZZLE_LIGHTS_ON]
+description: Turn on nozzle LEDs 2+3. Defaults to 25% neutral white; pass R/G/B/W (0.0-1.0)
+  for a custom color.
+gcode:
+    {% set r = params.R|default(0)|float %}
+    {% set g = params.G|default(0)|float %}
+    {% set b = params.B|default(0)|float %}
+    {% set w = params.W|default(0.25)|float %}
+    SET_LED LED=Toolhead RED={r} GREEN={g} BLUE={b} WHITE={w} INDEX=2 SYNC=0 TRANSMIT=0
+    SET_LED LED=Toolhead RED={r} GREEN={g} BLUE={b} WHITE={w} INDEX=3 SYNC=0 TRANSMIT=1
+
+[gcode_macro NOZZLE_LIGHTS_OFF]
+description: Turn off nozzle LEDs 2+3
+gcode:
+    SET_LED LED=Toolhead RED=0 GREEN=0 BLUE=0 WHITE=0 INDEX=2 SYNC=0 TRANSMIT=0
+    SET_LED LED=Toolhead RED=0 GREEN=0 BLUE=0 WHITE=0 INDEX=3 SYNC=0 TRANSMIT=1
+
+[gcode_macro _SET_TH_LED]
+description: Set status LED (index 1) to given color. Index 2-3 (nozzle lights) are
+  independent — see NOZZLE_LIGHTS_ON/OFF.
+gcode:
+    {% set r = params.R|default(0)|float %}
+    {% set g = params.G|default(0)|float %}
+    {% set b = params.B|default(0)|float %}
+    {% set w = params.W|default(0)|float %}
+    SET_LED LED=Toolhead RED={r} GREEN={g} BLUE={b} WHITE={w} INDEX=1 SYNC=0 TRANSMIT=1
+
+[gcode_macro _STATUS_OFF]
+description: Turn off all toolhead LEDs (status + nozzle)
+gcode:
+    SET_LED LED=Toolhead RED=0 GREEN=0 BLUE=0 WHITE=0 INDEX=1 SYNC=0 TRANSMIT=1
+    NOZZLE_LIGHTS_OFF
+
+[gcode_macro _STATUS_READY]
+description: Idle/ready - green
+gcode:
+    _SET_TH_LED R=0 G=0.5 B=0 W=0
+
+[gcode_macro _STATUS_BUSY]
+description: Busy/processing - orange
+gcode:
+    _SET_TH_LED R=0.8 G=0.3 B=0 W=0
+
+[gcode_macro _STATUS_HEATING]
+description: Heating hotend - red
+gcode:
+    _SET_TH_LED R=1.0 G=0 B=0 W=0
+
+[gcode_macro _STATUS_HOMING]
+description: Homing axes - blue
+gcode:
+    _SET_TH_LED R=0 G=0 B=1.0 W=0
+
+[gcode_macro _STATUS_LEVELING]
+description: QGL in progress - yellow
+gcode:
+    _SET_TH_LED R=0.8 G=0.8 B=0 W=0
+
+[gcode_macro _STATUS_MESHING]
+description: Bed mesh in progress - cyan
+gcode:
+    _SET_TH_LED R=0 G=0.8 B=0.8 W=0
+
+[gcode_macro _STATUS_CLEANING]
+description: Nozzle clean/purge - purple
+gcode:
+    _SET_TH_LED R=0.5 G=0 B=0.5 W=0
+
+[gcode_macro _STATUS_PRINTING]
+description: Printing - white at reduced brightness
+gcode:
+    _SET_TH_LED R=0 G=0 B=0 W=0.4
+
+[gcode_macro _STATUS_PART_READY]
+description: Print complete - solid green
+gcode:
+    _SET_TH_LED R=0 G=1.0 B=0 W=0
