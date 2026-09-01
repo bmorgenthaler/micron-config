@@ -1,0 +1,118 @@
+/*
+    Mainsail x Printer for Ants "Micron" Theme
+    ------------------------------------------
+    A dark theme built around the Micron R1 brand: black backgrounds
+    with the brand mark's green accent.
+
+    Colors were sampled directly from:
+      - Micron_Logo.svg / Micron_Hexagon.svg  (brand mark green)
+      - Micron_R1_Manual_WIP.pdf              (document black + ink green)
+*/
+
+:root {
+    --Primary:          #000000;    /* Micron: Black (manual page background) */
+    --Secondary:        #0f181f;    /* Micron: Black Soft (cover-page panel tone) */
+    --Green:            #42d62c;    /* Micron: Green (logo/hexagon mark green) */
+    --GreenBright:      #60bb46;    /* Micron: Green Alt (manual ink green) */
+    --Copper:           #9e310d;    /* Micron: Copper (render accent, used sparingly) */
+    --Warnings:         #ffb86c;
+    --Text:             #ffffff;    /* Micron: White */
+    --DarkerText:       #d7ded9;
+    --Background:       #0f181f;    /* Micron: Black Soft */
+    --DarkBackground:   #000000;    /* Micron: Black */
+    --Toolbars:         #0f181f;    /* Micron: Black Soft */
+    --Sheets:           #000000;    /* Micron: Black */
+}
+
+/* Toolbar title */
+#nav-header .v-toolbar__title {
+    font-size: 24px;
+    vertical-align: middle;
+    color: var(--Text);
+    font-family: monospace;
+}
+
+/* Warning banners */
+.v-application .warning {
+    background-color: var(--Copper) !important;
+    border-color: var(--Copper) !important;
+}
+
+/* Primary surfaces */
+.v-application .primary {
+    background-color: var(--Primary) !important;
+}
+
+/* Text colors */
+.v-btn__content .v-toolbar__title {
+    color: var(--Text) !important;
+}
+.text--darken-2 {
+    color: var(--Text) !important;
+}
+.subheading {
+    color: var(--Text) !important;
+}
+.theme--dark.v-icon, .v-btn__content, .v-text-field__suffix {
+    color: var(--Text) !important;
+}
+.theme--dark.v-input, .theme--dark.v-input input, .theme--dark.v-input textarea {
+    color: var(--Text) !important;
+}
+.v-application .blue--text {
+    color: var(--Green) !important;
+}
+.text-body-2 {
+    color: var(--Text) !important;
+}
+
+/* Primary / accent text + carets use the Micron green */
+.v-application .primary--text {
+    color: var(--Green) !important;
+    caret-color: var(--Green) !important;
+}
+
+/* Info banners */
+.v-application .info {
+    background-color: var(--DarkBackground) !important;
+    border-color: var(--DarkBackground) !important;
+}
+.v-text-field.v-text-field--solo:not(.v-text-field--solo-flat)>.v-input__control>.v-input__slot:focus-within {
+    border: thin solid var(--Green) !important;
+}
+.v-text-field.v-text-field--solo .v-input__control input {
+    caret-color: var(--Green);
+}
+.theme--dark.v-color-picker .v-color-picker__input input {
+    border: thin solid var(--Green);
+    color: var(--Text);
+}
+
+/* Print circle, pause/cancel/resume buttons -> Micron green */
+.v-application .orange {
+    background-color: var(--Green) !important;
+    border-color: var(--Green) !important;
+}
+.v-progress-circular__overlay {
+    stroke: var(--Green) !important;
+}
+
+/* Background and toolbars */
+body {
+    background-color: var(--Background);
+}
+.v-sheet {
+    border-color: var(--Background);
+}
+.v-app-bar.v-toolbar.theme--dark.v-sheet,
+.v-navigation-drawer.theme--dark.v-sheet {
+    background-color: var(--Toolbars) !important;
+}
+.v-card.theme--dark {
+    background-color: var(--Sheets) !important;
+}
+
+/* Links */
+a, .v-application a {
+    color: var(--Green) !important;
+}
