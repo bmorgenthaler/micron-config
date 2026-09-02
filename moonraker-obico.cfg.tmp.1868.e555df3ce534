@@ -1,0 +1,22 @@
+[server]
+url = https://obico.dallmannthaler.net
+auth_token = 1b75bda521aee70480f3
+
+[moonraker]
+host = 127.0.0.1
+port = 7125
+
+[webcam]
+disable_video_streaming = False
+snapshot_url = http://127.0.0.1:8080/?action=snapshot
+stream_url = http://127.0.0.1:8080/?action=stream
+
+[logging]
+path = /home/micron/printer_data/logs/moonraker-obico.log
+level = DEBUG
+
+[tunnel]
+
+
+[misc]
+sentry_opt: in
