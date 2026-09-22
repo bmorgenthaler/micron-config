@@ -1,0 +1,58 @@
+[gcode_macro PRINT_END]
+gcode:
+    {% set th = printer.toolhead %}
+    # Capture chamber state before TURN_OFF_HEATERS clears it
+    # (Jinja evaluates at expansion time, so this reads current state)
+    {% set chamber_was_heated = printer["heater_generic chamber"].target > 0 %}
+
+    M400                           ; wait for buffer to clear
+    SET_GCODE_OFFSET Z=0           ; clear dynamic Z offset from contact probe
+    SET_SKEW CLEAR=1               ; Clear skew profile
+    G90                            ; absolute positioning
+    G92 E0                         ; zero the extruder
+    G1 E-10.0 F3600                ; retract filament
+
+    # Z lift first — clear print before any lateral move
+    {% set str_z = [th.position.z + 5.0, th.axis_maximum.z]|min %}
+    G0 Z{str_z} F3000
+
+    # Stringing break — bidirectional X/Y with axis clamps
+    {% set str_x = th.position.x + (20.0 if th.axis_maximum.x - th.position.x > 20 else -20.0) %}
+    {% set str_x = [[str_x, th.axis_minimum.x]|max, th.axis_maximum.x]|min %}
+    {% set str_y = th.position.y + (20.0 if th.axis_maximum.y - th.position.y > 20 else -20.0) %}
+    {% set str_y = [[str_y, th.axis_minimum.y]|max, th.axis_maximum.y]|min %}
+    G0 X{str_x} Y{str_y} F20000
+
+    TURN_OFF_HEATERS
+    M107                           ; turn off fan
+
+    RESPOND MSG="Parking"
+    # Fixed park target X10/Y185 — outside the mesh area (13-160 both axes), clear of the
+    # print regardless of Z. Z targets 60 but never descends below the current post-print
+    # lift height, so the diagonal travel move can't drag the nozzle down through a tall
+    # finished print on the way to the corner.
+    {% set park_x = [[10, th.axis_minimum.x]|max, th.axis_maximum.x]|min %}
+    {% set park_y = [[185, th.axis_minimum.y]|max, th.axis_maximum.y]|min %}
+    {% set park_z = [[60, th.position.z]|max, th.axis_maximum.z]|min %}
+    G0 X{park_x} Y{park_y} Z{park_z} F3600
+    M400                           ; park move fully complete before proceeding
+    RESPOND MSG="Parked at X{park_x} Y{park_y} Z{park_z}"
+
+    BED_MESH_CLEAR
+
+    # Post-print air circulation — only when chamber was actively heated. Filter fan +
+    # forced chamber-fan circulation (TARGET=75 is a proxy to keep BED_FAN running hard,
+    # not a real heat target) are left running here; [idle_timeout] (printer.cfg) is what
+    # actually turns them off and sends "safe to open", once the printer has genuinely
+    # gone idle (1800s) rather than on a fixed short timer that ran out before the fumes
+    # actually cleared. chamber_needs_clear is always written (True/False) so a later
+    # unheated print's idle_timeout firing can't act on a stale flag from this one.
+    RESPOND MSG="Cycling chamber air"
+    {% if chamber_was_heated %}
+      SET_HEATER_TEMPERATURE HEATER=chamber TARGET=75
+    {% endif %}
+    SAVE_VARIABLE VARIABLE=chamber_needs_clear VALUE={chamber_was_heated}
+
+    _STATUS_PART_READY
+    RESPOND MSG=""
+    UPDATE_DELAYED_GCODE ID=_notify_print_complete DURATION=120
