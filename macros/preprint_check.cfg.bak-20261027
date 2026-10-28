@@ -1,0 +1,30 @@
+# macros/preprint_check.cfg
+# Blocking pre-print confirmation dialog (action:prompt). Call from the slicer start
+# gcode BEFORE PRINT_START, so nothing heats/homes while the dialog waits:
+#   PREPRINT_CHECK MSG="Is the build sheet installed and clean?"
+# Holds the print via Mainsail's PAUSE wrapper; Continue -> RESUME (falls straight into
+# PRINT_START, so the full homing/soak/QGL/mesh chain still runs), Cancel -> CANCEL_PRINT.
+# [respond] is already defined by mainsail-config/client.cfg — not redeclared here.
+# Use the dialog buttons, not Mainsail's Resume button: Resume works but leaves the
+# dialog open (only the buttons send prompt_end).
+
+[gcode_macro PREPRINT_CHECK]
+description: Pause and ask user to confirm before printing
+gcode:
+  {% set msg = params.MSG|default("Confirm before continuing")|string %}
+  RESPOND TYPE=command MSG="action:prompt_begin Pre-print check"
+  RESPOND TYPE=command MSG="action:prompt_text {msg}"
+  RESPOND TYPE=command MSG="action:prompt_footer_button Cancel|_CHECK_CANCEL|error"
+  RESPOND TYPE=command MSG="action:prompt_footer_button Continue|_CHECK_OK|primary"
+  RESPOND TYPE=command MSG="action:prompt_show"
+  PAUSE
+
+[gcode_macro _CHECK_OK]
+gcode:
+  RESPOND TYPE=command MSG="action:prompt_end"
+  RESUME
+
+[gcode_macro _CHECK_CANCEL]
+gcode:
+  RESPOND TYPE=command MSG="action:prompt_end"
+  CANCEL_PRINT
