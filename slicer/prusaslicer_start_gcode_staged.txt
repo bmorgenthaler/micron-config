@@ -1,6 +1,6 @@
 M104 S0
 M140 S0
-PRINT_START STAGED=1 EXTRUDER=[first_layer_temperature[initial_extruder]] BED=[first_layer_bed_temperature] CHAMBER=[chamber_temperature] MATERIAL={filament_type[initial_extruder]}
+PRINT_START_STAGED EXTRUDER=[first_layer_temperature[initial_extruder]] BED=[first_layer_bed_temperature] CHAMBER=[chamber_temperature] MATERIAL={filament_type[initial_extruder]}
 _PS_HOME
 _PS_HEAT_BED
 _PS_WAIT
